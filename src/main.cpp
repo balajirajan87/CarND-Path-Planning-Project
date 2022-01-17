@@ -6,6 +6,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
+#include "Prediction.h"
 #include "json.hpp"
 
 // for convenience
@@ -97,8 +98,8 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
-
-
+          Predictions pred_;
+          auto predictions = pred_.Predict_maneuvre(sensor_fusion);
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 
