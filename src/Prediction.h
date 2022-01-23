@@ -10,7 +10,6 @@
 
 #include <vector>
 #include <iostream>
-#include "helpers.h"
 using std::vector;
 
 class Predictions
@@ -53,7 +52,7 @@ public:
         double s;
         double d;
     };
-    enum Man_Type {const_vel, const_accel, lane_change};
+    enum Man_Type {const_vel, lane_change, const_accel, const_decel};
     vector<vehicle> veh_datas;
     //Member functions.
     void increment(int dt);
@@ -70,11 +69,14 @@ public:
     double calc_prob_model(vector<pred_st> model_data, vehicle sf_data);
     int find_lane_number(float dval);
 private:
-    bool is_initialized;
+    bool is_initialized = false;
     double prob_cv_model = 0.25;
     double prob_lc_model = 0.25;
     double prob_ca_model = 0.25;
     double prob_cd_model = 0.25;
+    vector<vector<double>> prob_models;
+    int no_vehicles;
+    vector<int> vehicle_id_array;
     
 };
 

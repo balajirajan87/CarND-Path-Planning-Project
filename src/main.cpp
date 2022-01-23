@@ -97,9 +97,33 @@ int main() {
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
-           */
-          Predictions pred_;
-          auto predictions = pred_.Predict_maneuvre(sensor_fusion);
+          */
+          // -------------  Predictions Part  -----------------------------
+            Predictions pred_;
+            vector<Predictions::vehicle> sf_data;
+            for (int i=0; i<sensor_fusion.size(); i++){
+                Predictions::vehicle data;
+                data.id = sensor_fusion[i][0];
+                data.x = sensor_fusion[i][1];
+                data.y = sensor_fusion[i][2];
+                data.vx = sensor_fusion[i][3];
+                data.vy = sensor_fusion[i][4];
+                data.s = sensor_fusion[i][5];
+                data.d = sensor_fusion[i][6];
+                sf_data.push_back(data);
+            }
+            vector<Predictions::Man_Type> predictions_vector = pred_.Predict_maneuvre(sf_data);
+          // --------------------------------------------------------------
+          // ---------------  To move the vehicle -------------------------
+          double dist_inc = 0.3;
+          for (int i = 0; i < 50; ++i) {
+              double next_s = car_s + (i+1)*dist_inc;
+              double next_d = 6;
+              vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+              next_x_vals.push_back(xy[0]);
+              next_y_vals.push_back(xy[1]);
+          }
+          // --------------------------------------------------------------
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
 

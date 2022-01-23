@@ -2,10 +2,10 @@
 #include <vector>
 #include <math.h>
 #include <random>
-#include "helpers.h"
 
 using std::normal_distribution;
 using std::default_random_engine;
+using namespace std;
 /*
 constructors..
 */
@@ -16,6 +16,10 @@ Predictions::Predictions(int lane, float s, int d, float v, float a){
     v = v;
     a = a;
 }
+
+Predictions::Predictions(){
+    
+}
 /*
 destructors..
 */
@@ -25,8 +29,11 @@ void Predictions::init(vector<vehicle> sf_data){
     /*
      Just to initialize the Datas.
      */
+    no_vehicles = sf_data.size();
+    vector<double> prob = {prob_cv_model, prob_lc_model, prob_ca_model, prob_cd_model};
     for (int i=0; i<sf_data.size(); i++){
         vehicle init_data;
+        init_data.id = sf_data[i].id;
         init_data.x = sf_data[i].x;
         init_data.y = sf_data[i].y;
         init_data.vx = sf_data[i].vx;
@@ -34,8 +41,9 @@ void Predictions::init(vector<vehicle> sf_data){
         init_data.s = sf_data[i].s;
         init_data.d = sf_data[i].d;
         veh_datas.push_back(init_data);
+        prob_models.push_back(prob);
+        vehicle_id_array.push_back(sf_data[i].id);
     }
-    is_initialized = false;
 }
 
 vector<Predictions::pred_st> Predictions::Const_Velocity_Yawrate_Model(vehicle &veh_datas){
@@ -194,11 +202,35 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
         for(int i=0; i<sf_data.size(); i++){
             Man_Type man = const_vel;       //check ??
             predicted_man_list.push_back(man);
-            return predicted_man_list;
         }
         is_initialized = true;
+        return predicted_man_list;
     }
     else{
+        if (no_vehicles > sf_data.size()){
+            //no of vehicles in the vicinity has decreased.
+            vector<int> veh_id_loc;
+            for(int i=0; i<sf_data.size(); i++){
+                veh_id_loc.push_back(sf_data[i].id);
+            }
+            //deduce a method to compare the arrays
+            for(int i=0; i<veh_id_loc.size(); i++){
+                if (veh_id_loc[i] != vehicle_id_array[i]){
+                    prob_models.erase(prob_models.begin() + i);
+                    break;
+                }
+            }
+            no_vehicles = sf_data.size();
+        }
+        else if (no_vehicles < sf_data.size()){
+            //no of vehicles has increased.
+            int diff = sf_data.size() - no_vehicles;
+            vector<double> prob = {0.25, 0.25, 0.25, 0.25};
+            for(int i = 0; i < diff; i++){
+                prob_models.push_back(prob);
+            }
+        }
+        else{/* do nothing */}
         for (int i=0; i<sf_data.size(); i++){
             vector<pred_st> cv_model = Const_Velocity_Yawrate_Model(veh_datas[i]);
             vector<pred_st> lc_model = Lane_Change_Model(sf_data[i],veh_datas[i]);
@@ -206,11 +238,32 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
             vector<pred_st> cd_model = Const_Decel_Model(veh_datas[i]);
             
             //take the first measurement and get the probablity.
-            prob_cv_model *= calc_prob_model(cv_model, sf_data[i]);
-            prob_lc_model *= calc_prob_model(lc_model, sf_data[i]);
-            prob_ca_model *= calc_prob_model(ca_model, sf_data[i]);
-            prob_cd_model *= calc_prob_model(cd_model, sf_data[i]);
+            prob_models[i][0] *= calc_prob_model(cv_model, sf_data[i]);
+            prob_models[i][1] *= calc_prob_model(lc_model, sf_data[i]);
+            prob_models[i][2] *= calc_prob_model(ca_model, sf_data[i]);
+            prob_models[i][3] *= calc_prob_model(cd_model, sf_data[i]);
+            
+            //for each vehicle calculate the max prob
+            int max_index = std::distance(prob_models[i].begin(), max_element(prob_models[i].begin(), prob_models[i].end()));
+            Man_Type Pred_loc;
+            switch(max_index)
+            {
+                case 0:
+                default:
+                    Pred_loc = const_vel;
+                    break;
+                case 1:
+                    Pred_loc = lane_change;
+                    break;
+                case 2:
+                    Pred_loc = const_accel;
+                    break;
+                case 3:
+                    Pred_loc = const_decel;
+                    break;
+            }
+            predicted_man_list.push_back(Pred_loc);
         }
     }
-    
+    return predicted_man_list;
 }
