@@ -32,11 +32,12 @@ public:
     double max_accel = 1.0;
     double max_decel = -1.0;
     int Lane_width = 4;
-    double ref_lc_man_length = 10.0;
+    double ref_lc_man_length = 45;              //22.352;
     double sigma_pos[3] = {0.2, 0.1, 0.2};      //x , y , theta
     double sigma_v[2] = {0.3, 0.3};             //vx , vy
     double sigma_frenet[2] = {0.3, 0.2};        //s , d
     int n_dist = 100;
+
     struct vehicle
     {
         int id;
@@ -57,7 +58,7 @@ public:
     //Member functions.
     void increment(int dt);
     float position_at(int t);
-    vector<vector<Predictions> > generate_predictions(vector<vehicle> sf_data, int horizon=2);
+    vector<vector<vehicle>> generate_predictions(vector<vehicle> sf_data);
     vector<pred_st> Lane_Change_Model(vehicle &data,vehicle &veh_datas);
     vector<pred_st> Const_Velocity_Yawrate_Model(vehicle &veh_datas);
     vector<pred_st> Const_Accel_Model(vehicle &veh_datas);

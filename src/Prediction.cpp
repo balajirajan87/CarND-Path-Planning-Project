@@ -55,8 +55,7 @@ vector<Predictions::pred_st> Predictions::Const_Velocity_Yawrate_Model(vehicle &
     default_random_engine gen;
     normal_distribution<double> dist_s(0, sigma_frenet[0]);
     normal_distribution<double> dist_d(0, sigma_frenet[1]);
-    v = pow(pow(veh_datas.vx,2) + pow(veh_datas.vy, 2),0.5);
-    Pred.s = veh_datas.s + v * dt;
+    Pred.s = veh_datas.s + max_velocity * dt;
     Pred.d = veh_datas.d;
     //add the uncertainities.
     for(int i=0; i<n_dist; i++){
@@ -126,6 +125,7 @@ vector<Predictions::pred_st> Predictions::Const_Accel_Model(vehicle &veh_datas){
     normal_distribution<double> dist_s(0, sigma_frenet[0]);
     normal_distribution<double> dist_d(0, sigma_frenet[1]);
     v = pow(pow(veh_datas.vx,2) + pow(veh_datas.vy, 2),0.5);
+    v = v + max_accel * dt;
     Pred.s = veh_datas.s + (v * dt) + (max_accel * pow(dt, 2) * 0.5);
     Pred.d = veh_datas.d;
     
@@ -147,6 +147,7 @@ vector<Predictions::pred_st> Predictions::Const_Decel_Model(vehicle &veh_datas){
     normal_distribution<double> dist_s(0, sigma_frenet[0]);
     normal_distribution<double> dist_d(0, sigma_frenet[1]);
     v = pow(pow(veh_datas.vx,2) + pow(veh_datas.vy, 2),0.5);
+    v = v + max_decel * dt;
     Pred.s = veh_datas.s + (v * dt) + (max_decel * pow(dt, 2) * 0.5);
     Pred.d = veh_datas.d;
     
@@ -217,6 +218,7 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
             for(int i=0; i<veh_id_loc.size(); i++){
                 if (veh_id_loc[i] != vehicle_id_array[i]){
                     prob_models.erase(prob_models.begin() + i);
+                    veh_datas.erase(veh_datas.begin() + i);         //check ??
                     break;
                 }
             }
@@ -229,6 +231,7 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
             for(int i = 0; i < diff; i++){
                 prob_models.push_back(prob);
             }
+            no_vehicles = sf_data.size();
         }
         else{/* do nothing */}
         for (int i=0; i<sf_data.size(); i++){
@@ -264,6 +267,65 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
             }
             predicted_man_list.push_back(Pred_loc);
         }
+        veh_datas.clear();
+        //save the previous vehicle data.
+        for (int i=0; i<sf_data.size(); i++){
+            vehicle prev_veh_data;
+            prev_veh_data.id = sf_data[i].id;
+            prev_veh_data.x = sf_data[i].x;
+            prev_veh_data.y = sf_data[i].y;
+            prev_veh_data.vx = sf_data[i].vx;
+            prev_veh_data.vy = sf_data[i].vy;
+            prev_veh_data.s = sf_data[i].s;
+            prev_veh_data.d = sf_data[i].d;
+            veh_datas.push_back(prev_veh_data);
+        }
     }
     return predicted_man_list;
+}
+
+vector<vector<Predictions::vehicle>> Predictions::generate_predictions(vector<vehicle> sf_data){
+    vector<Man_Type> pred_man = Predict_maneuvre(sf_data);
+    vector<vector<vehicle>> predicted_trajectory;
+    for (int i=0; i<pred_man.size(); i++){
+        vector<vehicle> Traj_t;
+        vehicle Traj;
+        switch(pred_man[i])
+        {
+            //Predict the trajectory for 1 sec to the future
+            case const_vel:
+                for (double dt = 0; dt < 1; dt += 0.02){
+                    double velocity = pow(pow(veh_datas[i].vx, 2) + pow(veh_datas[i].vy, 2), 0.5);
+                    Traj.s = veh_datas[i].s + velocity * dt;
+                    Traj.d = veh_datas[i].d;
+                    Traj_t.push_back(Traj);
+                }
+                break;
+            case lane_change:
+                for (double dt = 0; dt < 1; dt += 0.02){
+                    // TODO:
+                }
+                break;
+            case const_accel:
+                for (double dt=0; dt<1; dt += 0.02){
+                    double velocity = pow(pow(veh_datas[i].vx, 2) + pow(veh_datas[i].vy, 2), 0.5);
+                    velocity += max_accel * dt;
+                    Traj.s = veh_datas[i].s + (velocity * dt) + (max_accel * dt * dt * 0.5);
+                    Traj.d = veh_datas[i].d;
+                    Traj_t.push_back(Traj);
+                }
+                break;
+            case const_decel:
+                for (double dt=0; dt<1; dt += 0.02){
+                    double velocity = pow(pow(veh_datas[i].vx, 2) + pow(veh_datas[i].vy, 2), 0.5);
+                    velocity += max_decel * dt;
+                    Traj.s = veh_datas[i].s + (velocity * dt) + (max_decel * dt * dt * 0.5);
+                    Traj.d = veh_datas[i].d;
+                    Traj_t.push_back(Traj);
+                }
+                break;
+        }
+        predicted_trajectory.push_back(Traj_t);
+    }
+    return predicted_trajectory;
 }
