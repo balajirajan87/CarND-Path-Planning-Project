@@ -218,6 +218,7 @@ double Predictions::calc_prob_model(vector<pred_st> model_data, vehicle sf_data)
     double mue_s = mue[0];
     double mue_d = mue[1];
     double prob_cv_model = multiv_prob(sigma_frenet[0], sigma_frenet[1], sf_data.s, sf_data.d, mue_s, mue_d);
+    return prob_cv_model;
 }
 
 vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_data){
@@ -273,6 +274,17 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
             prob_models[i][3] *= calc_prob_model(ca_model, sf_data[i]);
             prob_models[i][4] *= calc_prob_model(cd_model, sf_data[i]);
             
+            double total_prob = 0;
+            
+            total_prob = std::max(prob_models[i][0] + prob_models[i][1] + prob_models[i][2] + prob_models[i][3] + prob_models[i][4],0.00001);
+            
+            prob_models[i][0] /= total_prob;
+            prob_models[i][1] /= total_prob;
+            prob_models[i][2] /= total_prob;
+            prob_models[i][3] /= total_prob;
+            prob_models[i][4] /= total_prob;
+            
+            std::cout << "the probablities of each maneuvre for vehicle: " << i << " is: " << prob_models[i][0] << " " << prob_models[i][1] << " " << prob_models[i][2] << " " << prob_models[i][3] << " " << prob_models[i][4] << std::endl;
             //for each vehicle calculate the max prob
             int max_index = std::distance(prob_models[i].begin(), max_element(prob_models[i].begin(), prob_models[i].end()));
             Man_Type Pred_loc;
