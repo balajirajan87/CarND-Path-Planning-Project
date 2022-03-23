@@ -34,7 +34,7 @@ public:
     int Lane_width = 4;
     double sigma_pos[3] = {0.2, 0.1, 0.2};      //x , y , theta
     double sigma_v[2] = {0.3, 0.3};             //vx , vy
-    double sigma_frenet[2] = {0.3, 0.2};        //s , d
+    double sigma_frenet[2] = {1.5, 1.2};        //s , d
     int n_dist = 100;
 
     struct vehicle

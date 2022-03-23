@@ -185,7 +185,12 @@ vector<Predictions::pred_st> Predictions::Const_Decel_Model(vehicle &veh_datas){
     return dist_Pred;
 }
 
-double Predictions::multiv_prob(double sigma_s, double sigma_d, double obs_s, double obs_d, double mue_s, double mue_d){
+double Predictions::multiv_prob(double sigma_s, double sigma_d, double obs_s, double obs_d, double mue_s, double mue_d)
+{
+    /*
+     This function calculates the Probablity using Gaussian Probablity Distribution.
+     This is the base for AMM algorithm.
+     */
   // calculate normalization term
   double gauss_norm;
   gauss_norm = 1 / (2 * M_PI * sigma_s * sigma_d);
@@ -202,18 +207,32 @@ double Predictions::multiv_prob(double sigma_s, double sigma_d, double obs_s, do
   return weight;
 }
 
-vector<double> Predictions::calculate_mean(vector<pred_st> model_data){
-    double mue_s = 0;
-    double mue_d = 0;
+vector<double> Predictions::calculate_mean(vector<pred_st> model_data)
+{
+    /*
+     This class is used to calculate the mean of frenet coordinates (s & d) from the distribution vector
+     generated from individual model functions.
+     */
+    double sum_s = 0.0;
+    double sum_d = 0.0;
+    double mue_s = 0.0;
+    double mue_d = 0.0;
     for (int i=0; i<model_data.size(); i++){
-        mue_s += model_data[i].s;
-        mue_d += model_data[i].d;
+        sum_s += model_data[i].s;
+        sum_d += model_data[i].d;
     }
-    return {mue_s/model_data.size(),mue_d/model_data.size()};
+    mue_s = sum_s / model_data.size();
+    mue_d = sum_d / model_data.size();
+    return {mue_s,mue_d};
 }
 
 double Predictions::calc_prob_model(vector<pred_st> model_data, vehicle sf_data)
 {
+    /*
+     This class is used to predict the probablity of a particular model fed in as argument.
+     This class first calculates the mean of individual frenet coordinates and then uses
+     mean and the variance and also the measurement data to identify the probablity of a model.
+     */
     vector<double> mue = calculate_mean(model_data);
     double mue_s = mue[0];
     double mue_d = mue[1];
@@ -248,6 +267,7 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
                 }
             }
             no_vehicles = sf_data.size();
+            std::cout << "No of vehicles in the vicinity has decreased. No of present vehicles: " << no_vehicles <<std::endl;
         }
         else if (no_vehicles < sf_data.size()){
             //no of vehicles has increased.
@@ -257,8 +277,11 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
                 prob_models.push_back(prob);
             }
             no_vehicles = sf_data.size();
+            std::cout << "No of vehicles in the vicinity has increased. No of present vehicles: " << no_vehicles <<std::endl;
         }
-        else{/* do nothing */}
+        else{
+            std::cout << "No change in the vehicle count" << std::endl;
+        }
         std::cout << "no of vehicles: " << sf_data.size() << std::endl;
         for (int i=0; i<sf_data.size(); i++){
             vector<pred_st> cv_model = Const_Velocity_Yawrate_Model(veh_datas[i]);
@@ -274,9 +297,9 @@ vector<Predictions::Man_Type> Predictions::Predict_maneuvre(vector<vehicle> sf_d
             prob_models[i][3] *= calc_prob_model(ca_model, sf_data[i]);
             prob_models[i][4] *= calc_prob_model(cd_model, sf_data[i]);
             
-            double total_prob = 0;
+            double total_prob = 0.0;
             
-            total_prob = std::max(prob_models[i][0] + prob_models[i][1] + prob_models[i][2] + prob_models[i][3] + prob_models[i][4],0.00001);
+            total_prob = std::max(prob_models[i][0] + prob_models[i][1] + prob_models[i][2] + prob_models[i][3] + prob_models[i][4],1.0e-100);
             
             prob_models[i][0] /= total_prob;
             prob_models[i][1] /= total_prob;
